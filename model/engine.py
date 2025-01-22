@@ -115,8 +115,6 @@ class Engine(object):
                 if user in self.agg_participant_index_map:
                     client_model.reset_embeddings(self.server_model_param[self.agg_participant_index_map[user]])
                     adapt_weight[user] = client_model.adapt_weight.detach().cpu()
-                    # if user == 0:
-                    #     print(client_model.adapter.delta_weight.detach().cpu().max(), client_model.adapter.delta_weight.detach().cpu().min())
 
             # Defining optimizers
             if self.config['backbone'] == 'FCF':

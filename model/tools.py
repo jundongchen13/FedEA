@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 
 
 def aggregateBySimilarity(client_params, graph_matrix, config):
-    # print(graph_matrix)
     # aggregated client params dict
     aggregated_client_params = copy.deepcopy(client_params)
     for user in aggregated_client_params.keys():
@@ -22,15 +21,16 @@ def aggregateBySimilarity(client_params, graph_matrix, config):
         aggregation_weight_vector = graph_matrix[user]
         # aggregate client params by graph
         for neighbor_user in client_params.keys():
-            neighbor_param = client_params[neighbor_user]['item_embeddings.weight'].data
             neighbor_weight = aggregation_weight_vector[neighbor_user]
-            aggregated_client_params[user]['item_embeddings.weight'].data += neighbor_weight * neighbor_param
-            if config['backbone'] == 'FedNCF':
-                for layer in range(len(config['mlp_layers']) - 1):
-                    aggregated_client_params[user]['mlp_weights.' + str(layer) + '.weight'].data += \
-                    client_params[neighbor_user]['mlp_weights.' + str(layer) + '.weight'].data * neighbor_weight
-                    aggregated_client_params[user]['mlp_weights.' + str(layer) + '.bias'].data += \
-                    client_params[neighbor_user]['mlp_weights.' + str(layer) + '.bias'].data * neighbor_weight
+            if neighbor_weight != 0:
+                neighbor_param = client_params[neighbor_user]['item_embeddings.weight'].data
+                aggregated_client_params[user]['item_embeddings.weight'].data += neighbor_weight * neighbor_param
+                if config['backbone'] == 'FedNCF':
+                    for layer in range(len(config['mlp_layers']) - 1):
+                        aggregated_client_params[user]['mlp_weights.' + str(layer) + '.weight'].data += \
+                        client_params[neighbor_user]['mlp_weights.' + str(layer) + '.weight'].data * neighbor_weight
+                        aggregated_client_params[user]['mlp_weights.' + str(layer) + '.bias'].data += \
+                        client_params[neighbor_user]['mlp_weights.' + str(layer) + '.bias'].data * neighbor_weight
 
     return aggregated_client_params
 
@@ -120,43 +120,6 @@ def calculate_client_weights(client_sample_num):
     client_proportions = {client: samples / total_samples for client, samples in client_sample_num.items()}
 
     return client_proportions
-
-
-def weight_client_server(user, client_model_params, server_model_param, map, model_dict, config):
-    client_param_dict = copy.deepcopy(model_dict)
-
-    client_items_data = client_model_params[user]['item_embeddings.weight'].data
-
-    if user in map:
-        server_items_data = server_model_param[map[user]]['item_embeddings.weight'].data
-        client_param_dict['item_embeddings.weight'].data = config['interpolation'] * client_items_data + (
-                    1 - config['interpolation']) * server_items_data
-    else:
-        client_param_dict['item_embeddings.weight'].data = client_items_data
-
-    # for mlp layers param
-    if config['backbone'] == 'FedNCF':
-        for layer in range(len(config['mlp_layers']) - 1):
-            client_mlp_weight = client_model_params[user]['mlp_weights.' + str(layer) + '.weight'].data
-            client_mlp_bias = client_model_params[user]['mlp_weights.' + str(layer) + '.bias'].data
-
-            if user in map:
-                server_mlp_weight = server_model_param[map[user]]['mlp_weights.' + str(layer) + '.weight'].data
-                server_mlp_bias = server_model_param[map[user]]['mlp_weights.' + str(layer) + '.bias'].data
-                client_param_dict['mlp_weights.' + str(layer) + '.weight'].data = config[
-                                                                                      'interpolation'] * client_mlp_weight + (
-                                                                                              1 - config[
-                                                                                          'interpolation']) * server_mlp_weight
-                client_param_dict['mlp_weights.' + str(layer) + '.bias'].data = config[
-                                                                                    'interpolation'] * client_mlp_bias + (
-                                                                                            1 - config[
-                                                                                        'interpolation']) * server_mlp_bias
-
-            else:
-                client_param_dict['mlp_weights.' + str(layer) + '.weight'].data = client_mlp_weight
-                client_param_dict['mlp_weights.' + str(layer) + '.bias'].data = client_mlp_bias
-
-    return client_param_dict
 
 
 def sub_matrix_shift(matrix):
